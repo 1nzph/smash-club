@@ -1,0 +1,53 @@
+// Schema do banco de dados - Smash Club
+// Local (dev): SQLite, um arquivo unico, sem instalar nada.
+// Producao: troque o provider abaixo para "postgresql" e o DATABASE_URL no .env
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// SQLite nao suporta o tipo "enum" nativo do Prisma, entao guardamos o papel
+// do usuario como texto ("PLAYER" ou "CLUB_OWNER"). A validacao de que so
+// esses dois valores sao aceitos continua sendo feita no codigo (Zod).
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  playerProfile PlayerProfile?
+  clubProfile   ClubProfile?
+}
+
+// Perfil especifico de jogador - so existe se o User tiver role = PLAYER
+model PlayerProfile {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  currentLevel       Float    @default(2.0)
+  preferredPosition  String?  // "drive" | "reves" | "ambos"
+  racketBrand        String?
+  racketModel        String?
+  city               String?
+  state              String?
+  createdAt          DateTime @default(now())
+}
+
+// Perfil especifico de dono de arena - so existe se o User tiver role = CLUB_OWNER
+model ClubProfile {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName  String?
+  phone        String?
+  createdAt    DateTime @default(now())
+}
