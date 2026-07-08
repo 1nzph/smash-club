@@ -50,4 +50,46 @@ model ClubProfile {
   companyName  String?
   phone        String?
   createdAt    DateTime @default(now())
+
+  arenas       Arena[]
+}
+
+// Uma arena pertence a um ClubProfile (o dono). Tem varias quadras (courts).
+model Arena {
+  id           String   @id @default(uuid())
+  ownerId      String
+  owner        ClubProfile @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  name         String
+  description  String?
+  address      String
+  city         String
+  state        String
+  latitude     Float?
+  longitude    Float?
+
+  // SQLite nao tem um tipo nativo de lista, entao guardamos como texto
+  // separado por virgula, ex: "estacionamento,bar,vestiario,loja"
+  amenities    String   @default("")
+  // Mesma logica para as fotos: URLs separadas por virgula
+  photos       String   @default("")
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  courts       Court[]
+}
+
+// Cada quadra pertence a uma Arena
+model Court {
+  id             String  @id @default(uuid())
+  arenaId        String
+  arena          Arena   @relation(fields: [arenaId], references: [id], onDelete: Cascade)
+
+  name           String  // ex: "Quadra 1"
+  type           String  // "coberta" | "descoberta"
+  surface        String  // "vidro" | "alvenaria"
+  basePriceHour  Float
+
+  createdAt      DateTime @default(now())
 }

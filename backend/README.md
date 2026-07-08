@@ -175,3 +175,76 @@ Este é o módulo de autenticação. Os próximos módulos naturais são:
 - **Sistema de nível** (cálculo automático pós-partida)
 
 Quando quiser seguir para o próximo, é só pedir.
+
+---
+
+## Módulo: Arenas e Quadras
+
+Adicionamos dois modelos novos ao banco: `Arena` (pertence a um dono de clube) e `Court` (uma quadra dentro de uma arena).
+
+### Aplicar a migração do banco
+
+Como mudamos o `schema.prisma`, é preciso gerar uma nova migração:
+
+```bash
+npx prisma migrate dev --name add_arenas_and_courts
+```
+
+### Endpoints disponíveis
+
+| Método | Rota | Quem pode acessar | O que faz |
+|---|---|---|---|
+| `POST` | `/arenas` | Dono de arena (logado) | Cria uma arena vinculada à conta logada |
+| `GET` | `/arenas` | Público | Lista arenas, com filtros opcionais `?city=` `?state=` `?q=` |
+| `GET` | `/arenas/mine` | Dono de arena (logado) | Lista só as arenas do usuário logado |
+| `GET` | `/arenas/:id` | Público | Detalhe de uma arena, com suas quadras |
+| `PUT` | `/arenas/:id` | Dono da arena | Atualiza dados da arena |
+| `POST` | `/arenas/:id/courts` | Dono da arena | Adiciona uma quadra à arena |
+
+### Testando com PowerShell
+
+**Primeiro, faça login como um dono de clube** (se ainda não tiver um cadastrado, cadastre um com `role: "CLUB_OWNER"` — veja exemplo lá em cima). Guarde o token:
+
+```powershell
+$loginBody = @{ email = "rafael@arenavidroverde.com"; password = "senha12345" } | ConvertTo-Json
+$response = Invoke-RestMethod -Uri "http://localhost:3333/auth/login" -Method Post -Body $loginBody -ContentType "application/json"
+$token = $response.token
+```
+
+**Criar uma arena:**
+```powershell
+$arenaBody = @{
+    name        = "Arena Vidro Verde"
+    description = "Arena coberta no coracao de Pinheiros"
+    address     = "Rua dos Pinheiros, 500"
+    city        = "Sao Paulo"
+    state       = "SP"
+    amenities   = @("estacionamento", "bar", "vestiario")
+    photos      = @()
+} | ConvertTo-Json
+
+$arena = Invoke-RestMethod -Uri "http://localhost:3333/arenas" -Method Post -Body $arenaBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+$arena
+```
+
+Guarde o `id` da arena criada (`$arena.arena.id`) para o próximo passo.
+
+**Adicionar uma quadra a essa arena:**
+```powershell
+$arenaId = $arena.arena.id
+
+$courtBody = @{
+    name          = "Quadra 1"
+    type          = "coberta"
+    surface       = "vidro"
+    basePriceHour = 90
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:3333/arenas/$arenaId/courts" -Method Post -Body $courtBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+```
+
+**Buscar arenas publicamente (sem precisar de token):**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3333/arenas?city=Sao Paulo"
+```
+

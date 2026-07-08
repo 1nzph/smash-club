@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.routes";
+import arenaRoutes from "./routes/arena.routes";
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/auth", authRoutes);
+app.use("/arenas", arenaRoutes);
 
 // Tratamento de rota nao encontrada
 app.use((req, res) => {
