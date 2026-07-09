@@ -248,3 +248,168 @@ Invoke-RestMethod -Uri "http://localhost:3333/arenas/$arenaId/courts" -Method Po
 Invoke-RestMethod -Uri "http://localhost:3333/arenas?city=Sao Paulo"
 ```
 
+---
+
+## Módulo: Reservas
+
+Novo modelo `Booking`, ligado a uma `Court` e a um `User` (jogador).
+
+### Aplicar a migração do banco
+
+```bash
+npx prisma migrate dev --name add_bookings
+```
+
+### Endpoints disponíveis
+
+| Método | Rota | Quem acessa | O que faz |
+|---|---|---|---|
+| `POST` | `/bookings` | Jogador (logado) | Cria uma reserva, verificando conflito de horário |
+| `GET` | `/bookings/mine` | Jogador (logado) | Lista as reservas do jogador logado |
+| `DELETE` | `/bookings/:id` | Dono da reserva | Cancela a reserva |
+| `GET` | `/courts/:id/availability?date=YYYY-MM-DD` | Público | Lista os horários já ocupados naquele dia |
+
+### Testando com PowerShell
+
+**Login como jogador e busca de uma quadra existente:**
+```powershell
+$loginBody = @{ email = "marina@exemplo.com"; password = "senha12345" } | ConvertTo-Json
+$login = Invoke-RestMethod -Uri "http://localhost:3333/auth/login" -Method Post -Body $loginBody -ContentType "application/json"
+$token = $login.token
+
+$arenas = Invoke-RestMethod -Uri "http://localhost:3333/arenas"
+$courtId = $arenas.arenas[0].courts[0].id
+$courtId
+```
+
+**Ver disponibilidade da quadra em uma data:**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3333/courts/$courtId/availability?date=2026-07-10"
+```
+
+**Criar uma reserva:**
+```powershell
+$bookingBody = @{
+    courtId         = $courtId
+    startsAt        = "2026-07-10T19:00:00"
+    durationMinutes = 60
+} | ConvertTo-Json
+
+$booking = Invoke-RestMethod -Uri "http://localhost:3333/bookings" -Method Post -Body $bookingBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+$booking.booking
+```
+
+**Tentar reservar o mesmo horário de novo (deve dar erro 409 de conflito):**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3333/bookings" -Method Post -Body $bookingBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+```
+
+**Ver minhas reservas:**
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3333/bookings/mine" -Headers @{ Authorization = "Bearer $token" } | ConvertTo-Json -Depth 5
+```
+
+---
+
+## Módulo: Jogo aberto e convidados na reserva
+
+A `Booking` ganhou três campos novos: `isOpenMatch`, `minLevel`/`maxLevel` (faixa de nível aceita) e `invitedEmails` (lista de e-mails convidados diretamente).
+
+### Aplicar a migração do banco
+
+```bash
+npx prisma migrate dev --name add_open_match_fields
+```
+
+### O que mudou no endpoint de criar reserva
+
+`POST /bookings` agora aceita esses campos extras (todos opcionais, exceto quando `isOpenMatch` é `true` — aí `minLevel` e `maxLevel` passam a ser obrigatórios):
+
+```powershell
+$bookingBody = @{
+    courtId         = $courtId
+    startsAt        = "2026-07-10T19:00:00"
+    durationMinutes = 60
+    isOpenMatch     = $true
+    minLevel        = 3.0
+    maxLevel         = 4.0
+    invitedEmails   = @("amigo1@exemplo.com", "amigo2@exemplo.com")
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:3333/bookings" -Method Post -Body $bookingBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+```
+
+### Novo endpoint: listar jogos abertos
+
+```powershell
+Invoke-RestMethod -Uri "http://localhost:3333/bookings/open" | ConvertTo-Json -Depth 5
+```
+
+Essa rota é pública (não exige token) — é o que vai alimentar a aba "Jogos abertos" para outros jogadores encontrarem partidas.
+
+
+---
+
+## Módulo: Sistema de Nível (Motor de Nivelamento)
+
+Sistema de nível estilo Playtomic: escala de **0.5 a 7.0**, com **confiabilidade** (0-100%) que começa em 20% e sobe +5% a cada partida registrada.
+
+### Aplicar a migração
+
+```bash
+npx prisma migrate dev --name add_leveling_system
+```
+
+### Endpoints
+
+| Método | Rota | O que faz |
+|---|---|---|
+| `POST` | `/players/level-quiz` | Define o nível inicial via questionário de boas-vindas |
+| `POST` | `/players/match-result` | Registra o resultado de uma partida e recalcula o nível dos 4 jogadores |
+| `GET` | `/players/:userId/level-history` | Histórico de ajustes de nível de um jogador |
+
+### Testando o questionário inicial
+
+```powershell
+$login = Invoke-RestMethod -Uri "http://localhost:3333/auth/login" -Method Post -Body (@{email="marina@exemplo.com";password="senha12345"}|ConvertTo-Json) -ContentType "application/json"
+$token = $login.token
+
+$quizBody = @{
+    practiceTime = "1_a_3_anos"
+    technicalLevel = "paredes_saques"
+    frequency = "regular"
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:3333/players/level-quiz" -Method Post -Body $quizBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" }
+```
+
+### Testando o resultado de uma partida
+
+Precisa dos IDs de 4 jogadores cadastrados (2 de cada dupla). Pegue os IDs em `/auth/me` de cada conta ou no Prisma Studio (`npx prisma studio`).
+
+```powershell
+$matchBody = @{
+    teamA = @("id-jogador-1", "id-jogador-2")
+    teamB = @("id-jogador-3", "id-jogador-4")
+    setsA = 2
+    setsB = 1
+} | ConvertTo-Json
+
+Invoke-RestMethod -Uri "http://localhost:3333/players/match-result" -Method Post -Body $matchBody -ContentType "application/json" -Headers @{ Authorization = "Bearer $token" } | ConvertTo-Json -Depth 5
+```
+
+A resposta traz o ajuste de nível e confiabilidade dos 4 jogadores, no formato:
+```json
+{
+  "nivel_anterior": 3.0,
+  "novo_nivel": 3.15,
+  "confiabilidade_anterior": 50,
+  "nova_confiabilidade": 55,
+  "variação": 0.15,
+  "resumo_ajuste": "Jogando como... "
+}
+```
+
+### Nota sobre a fórmula
+
+A especificação original usava `K x (Esperado - Real)`, o que faz o nível cair sempre que se vence. Corrigimos para `K x (Real - Esperado)`, que é a convenção padrão de sistemas Elo — vencer aumenta o nível (mais quando se é azarão, menos quando já era esperado vencer).

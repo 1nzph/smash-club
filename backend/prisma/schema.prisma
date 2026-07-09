@@ -26,6 +26,8 @@ model User {
 
   playerProfile PlayerProfile?
   clubProfile   ClubProfile?
+  bookings      Booking[]
+  matchParticipations MatchParticipant[]
 }
 
 // Perfil especifico de jogador - so existe se o User tiver role = PLAYER
@@ -34,12 +36,32 @@ model PlayerProfile {
   userId             String   @unique
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   currentLevel       Float    @default(2.0)
+  reliability        Int      @default(20) // 0-100, confianca no nivel atual
   preferredPosition  String?  // "drive" | "reves" | "ambos"
   racketBrand        String?
   racketModel        String?
   city               String?
   state              String?
   createdAt          DateTime @default(now())
+
+  levelHistory       LevelHistoryEntry[]
+}
+
+// Registo de cada ajuste de nivel (questionario inicial ou pos-partida)
+model LevelHistoryEntry {
+  id                  String   @id @default(uuid())
+  playerProfileId     String
+  playerProfile       PlayerProfile @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
+
+  levelBefore         Float
+  levelAfter          Float
+  reliabilityBefore   Int
+  reliabilityAfter    Int
+  delta               Float
+  reason              String   // "questionario" | "partida"
+  summary             String   // texto explicativo curto
+
+  createdAt           DateTime @default(now())
 }
 
 // Perfil especifico de dono de arena - so existe se o User tiver role = CLUB_OWNER
@@ -92,4 +114,47 @@ model Court {
   basePriceHour  Float
 
   createdAt      DateTime @default(now())
+
+  bookings       Booking[]
+}
+
+// Uma reserva de horario, feita por um jogador, numa quadra especifica
+model Booking {
+  id          String   @id @default(uuid())
+
+  courtId     String
+  court       Court    @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  playerId    String
+  player      User     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  startsAt    DateTime
+  endsAt      DateTime
+  totalPrice  Float
+
+  // "confirmed" | "cancelled"
+  status      String   @default("confirmed")
+
+  // Jogo aberto: outros jogadores podem enxergar/entrar nesse horário
+  isOpenMatch      Boolean @default(false)
+  maxPlayers       Int     @default(4)
+  minLevel         Float?
+  maxLevel         Float?
+  invitedEmails    String  @default("")
+
+  participants     MatchParticipant[]
+
+  createdAt   DateTime @default(now())
+}
+
+// Participante de um jogo aberto (diferente do organizador, que ja esta em Booking.playerId)
+model MatchParticipant {
+  id         String   @id @default(uuid())
+  bookingId  String
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  playerId   String
+  player     User     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  joinedAt   DateTime @default(now())
+
+  @@unique([bookingId, playerId]) // um jogador nao pode entrar duas vezes
 }

@@ -3,6 +3,9 @@ import express from "express";
 import cors from "cors";
 import authRoutes from "./routes/auth.routes";
 import arenaRoutes from "./routes/arena.routes";
+import bookingRoutes from "./routes/booking.routes";
+import courtRoutes from "./routes/court.routes";
+import playerRoutes from "./routes/player.routes";
 
 const app = express();
 
@@ -16,6 +19,9 @@ app.get("/health", (_req, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/arenas", arenaRoutes);
+app.use("/bookings", bookingRoutes);
+app.use("/courts", courtRoutes);
+app.use("/players", playerRoutes);
 
 // Tratamento de rota nao encontrada
 app.use((req, res) => {

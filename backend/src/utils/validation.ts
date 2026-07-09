@@ -59,3 +59,59 @@ export const searchArenasSchema = z.object({
 
 export type CreateArenaInput = z.infer<typeof createArenaSchema>;
 export type CreateCourtInput = z.infer<typeof createCourtSchema>;
+
+// ============================================================
+// RESERVAS
+// ============================================================
+export const createBookingSchema = z.object({
+  courtId: z.string().min(1, "courtId é obrigatório"),
+  // Data e hora de inicio, no formato ISO, ex: "2026-07-10T19:00:00"
+  startsAt: z.string().datetime({ offset: true }).or(z.string().min(1)),
+  // Duracao em minutos - por padrao, 60 (uma hora)
+  durationMinutes: z.number().int().positive().default(60),
+
+  // Jogo aberto: se true, minLevel/maxLevel sao obrigatorios
+  isOpenMatch: z.boolean().default(false),
+  minLevel: z.number().min(0).max(7).optional(),
+  maxLevel: z.number().min(0).max(7).optional(),
+  maxPlayers: z.number().int().min(2).max(4).default(4),
+  invitedEmails: z.array(z.string().email()).optional().default([]),
+}).refine(
+  (data) => !data.isOpenMatch || (data.minLevel !== undefined && data.maxLevel !== undefined),
+  { message: "Ao abrir o jogo, informe o nível mínimo e máximo aceito", path: ["minLevel"] }
+).refine(
+  (data) => !data.isOpenMatch || (data.minLevel !== undefined && data.maxLevel !== undefined && data.minLevel <= data.maxLevel),
+  { message: "O nível mínimo não pode ser maior que o máximo", path: ["minLevel"] }
+);
+
+export const availabilityQuerySchema = z.object({
+  date: z.string().min(1, "date é obrigatório, formato YYYY-MM-DD"),
+});
+
+export type CreateBookingInput = z.infer<typeof createBookingSchema>;
+
+// ============================================================
+// SISTEMA DE NÍVEL
+// ============================================================
+export const levelQuizSchema = z.object({
+  practiceTime: z.enum(["menos_3_meses", "3_a_12_meses", "1_a_3_anos", "mais_3_anos"], {
+    errorMap: () => ({ message: "practiceTime inválido" }),
+  }),
+  technicalLevel: z.enum(["dificuldade_raquete", "trocas_fundo", "paredes_saques", "smash_bandeja_rede"], {
+    errorMap: () => ({ message: "technicalLevel inválido" }),
+  }),
+  frequency: z.enum(["ocasional", "regular", "competitivo"], {
+    errorMap: () => ({ message: "frequency inválido" }),
+  }),
+});
+
+export const matchResultSchema = z.object({
+  // IDs dos usuarios em cada dupla. teamA deve incluir quem esta enviando o resultado.
+  teamA: z.array(z.string()).length(2, "teamA deve ter exatamente 2 jogadores"),
+  teamB: z.array(z.string()).length(2, "teamB deve ter exatamente 2 jogadores"),
+  setsA: z.number().int().min(0).max(3),
+  setsB: z.number().int().min(0).max(3),
+}).refine((d) => d.setsA !== d.setsB, { message: "O placar não pode terminar empatado" });
+
+export type LevelQuizInput = z.infer<typeof levelQuizSchema>;
+export type MatchResultInput = z.infer<typeof matchResultSchema>;
