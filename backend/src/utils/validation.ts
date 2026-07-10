@@ -89,29 +89,3 @@ export const availabilityQuerySchema = z.object({
 });
 
 export type CreateBookingInput = z.infer<typeof createBookingSchema>;
-
-// ============================================================
-// SISTEMA DE NÍVEL
-// ============================================================
-export const levelQuizSchema = z.object({
-  practiceTime: z.enum(["menos_3_meses", "3_a_12_meses", "1_a_3_anos", "mais_3_anos"], {
-    errorMap: () => ({ message: "practiceTime inválido" }),
-  }),
-  technicalLevel: z.enum(["dificuldade_raquete", "trocas_fundo", "paredes_saques", "smash_bandeja_rede"], {
-    errorMap: () => ({ message: "technicalLevel inválido" }),
-  }),
-  frequency: z.enum(["ocasional", "regular", "competitivo"], {
-    errorMap: () => ({ message: "frequency inválido" }),
-  }),
-});
-
-export const matchResultSchema = z.object({
-  // IDs dos usuarios em cada dupla. teamA deve incluir quem esta enviando o resultado.
-  teamA: z.array(z.string()).length(2, "teamA deve ter exatamente 2 jogadores"),
-  teamB: z.array(z.string()).length(2, "teamB deve ter exatamente 2 jogadores"),
-  setsA: z.number().int().min(0).max(3),
-  setsB: z.number().int().min(0).max(3),
-}).refine((d) => d.setsA !== d.setsB, { message: "O placar não pode terminar empatado" });
-
-export type LevelQuizInput = z.infer<typeof levelQuizSchema>;
-export type MatchResultInput = z.infer<typeof matchResultSchema>;

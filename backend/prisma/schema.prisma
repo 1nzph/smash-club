@@ -36,32 +36,12 @@ model PlayerProfile {
   userId             String   @unique
   user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   currentLevel       Float    @default(2.0)
-  reliability        Int      @default(20) // 0-100, confianca no nivel atual
   preferredPosition  String?  // "drive" | "reves" | "ambos"
   racketBrand        String?
   racketModel        String?
   city               String?
   state              String?
   createdAt          DateTime @default(now())
-
-  levelHistory       LevelHistoryEntry[]
-}
-
-// Registo de cada ajuste de nivel (questionario inicial ou pos-partida)
-model LevelHistoryEntry {
-  id                  String   @id @default(uuid())
-  playerProfileId     String
-  playerProfile       PlayerProfile @relation(fields: [playerProfileId], references: [id], onDelete: Cascade)
-
-  levelBefore         Float
-  levelAfter          Float
-  reliabilityBefore   Int
-  reliabilityAfter    Int
-  delta               Float
-  reason              String   // "questionario" | "partida"
-  summary             String   // texto explicativo curto
-
-  createdAt           DateTime @default(now())
 }
 
 // Perfil especifico de dono de arena - so existe se o User tiver role = CLUB_OWNER

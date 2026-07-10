@@ -14,7 +14,6 @@ CREATE TABLE "PlayerProfile" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
     "currentLevel" REAL NOT NULL DEFAULT 2.0,
-    "reliability" INTEGER NOT NULL DEFAULT 20,
     "preferredPosition" TEXT,
     "racketBrand" TEXT,
     "racketModel" TEXT,
@@ -22,21 +21,6 @@ CREATE TABLE "PlayerProfile" (
     "state" TEXT,
     "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "PlayerProfile_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-);
-
--- CreateTable
-CREATE TABLE "LevelHistoryEntry" (
-    "id" TEXT NOT NULL PRIMARY KEY,
-    "playerProfileId" TEXT NOT NULL,
-    "levelBefore" REAL NOT NULL,
-    "levelAfter" REAL NOT NULL,
-    "reliabilityBefore" INTEGER NOT NULL,
-    "reliabilityAfter" INTEGER NOT NULL,
-    "delta" REAL NOT NULL,
-    "reason" TEXT NOT NULL,
-    "summary" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT "LevelHistoryEntry_playerProfileId_fkey" FOREIGN KEY ("playerProfileId") REFERENCES "PlayerProfile" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 -- CreateTable

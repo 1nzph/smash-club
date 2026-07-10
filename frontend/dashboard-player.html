@@ -145,6 +145,73 @@
 
 </div>
 
+<!-- MODAL: QUESTIONÁRIO DE NÍVEL -->
+<div class="modal-overlay" id="quiz-modal">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="modal-title">Questionário de nível</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeQuiz()">✕</button>
+    </div>
+    <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px;">Responda para definirmos seu nível inicial (0.5 a 7.0).</div>
+    <div class="error-msg" id="quiz-err"></div>
+    <div class="form-group">
+      <label>Tempo de prática</label>
+      <select class="form-input" id="q-practice">
+        <option value="menos_3_meses">Nunca joguei / menos de 3 meses</option>
+        <option value="3_a_12_meses">3 a 12 meses</option>
+        <option value="1_a_3_anos">1 a 3 anos</option>
+        <option value="mais_3_anos">Mais de 3 anos (ou tênis/squash)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Domínio técnico</label>
+      <select class="form-input" id="q-technical">
+        <option value="dificuldade_raquete">Tenho dificuldade em acertar a bola</option>
+        <option value="trocas_fundo">Mantenho trocas de bola no fundo</option>
+        <option value="paredes_saques">Uso bem as paredes e saco consistente</option>
+        <option value="smash_bandeja_rede">Domino smash, víbora, bandeja e rede</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Frequência de jogo</label>
+      <select class="form-input" id="q-frequency">
+        <option value="ocasional">Ocasional (1x por mês ou menos)</option>
+        <option value="regular">Regular (1x por semana)</option>
+        <option value="competitivo">Competitivo (2x+ por semana / torneios)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary btn-block" id="btn-quiz" onclick="submitQuiz()">Definir meu nível</button>
+  </div>
+</div>
+
+<!-- MODAL: RESULTADO DE PARTIDA -->
+<div class="modal-overlay" id="result-modal">
+  <div class="modal-card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <div class="modal-title">Registrar resultado</div>
+      <button class="btn btn-ghost btn-sm" onclick="closeMatchResult()">✕</button>
+    </div>
+    <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:16px;">Monte as duplas e informe o placar em sets.</div>
+    <div class="error-msg" id="result-err"></div>
+    <div class="form-group">
+      <label>Dupla A</label>
+      <select class="form-input" id="r-a1" style="margin-bottom:8px;"></select>
+      <select class="form-input" id="r-a2"></select>
+    </div>
+    <div class="form-group">
+      <label>Dupla B</label>
+      <select class="form-input" id="r-b1" style="margin-bottom:8px;"></select>
+      <select class="form-input" id="r-b2"></select>
+    </div>
+    <div class="form-row-2">
+      <div class="form-group"><label>Sets Dupla A</label><input class="form-input" type="number" min="0" max="3" id="r-setsA" value="2"></div>
+      <div class="form-group"><label>Sets Dupla B</label><input class="form-input" type="number" min="0" max="3" id="r-setsB" value="0"></div>
+    </div>
+    <button class="btn btn-primary btn-block" id="btn-result" onclick="submitMatchResult()">Salvar resultado</button>
+    <div id="result-output" style="margin-top:16px;"></div>
+  </div>
+</div>
+
 <!-- MODAL PAGAMENTO -->
 <div class="modal-overlay" id="pay-modal">
   <div class="modal-card">
@@ -434,13 +501,17 @@ function renderBooking(b, isPast) {
   var cancelBtn = (!cancelled && !isPast)
     ? '<button class="btn btn-outline btn-sm" style="margin-top:12px;" onclick="cancelBooking(\'' + b.id + '\')">Cancelar reserva</button>'
     : '';
+  var players = b.isOpenMatch ? [b.playerId].concat((b.participants||[]).map(function(p){return p.playerId;})) : [];
+  var resultBtn = (isPast && !cancelled && b.isOpenMatch && players.length === 4)
+    ? '<button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="openMatchResult(\'' + b.id + '\')">Registrar resultado</button>'
+    : '';
   return '<div class="booking-card' + (isPast ? ' past' : '') + '">' +
     '<div class="booking-card-head"><div>' +
     '<div class="booking-name">' + (b.court && b.court.arena ? b.court.arena.name : 'Arena') + ' · ' + (b.court ? b.court.name : '') + '</div>' +
     '<div class="booking-meta"><span>' + dateStr + '</span><span>' + timeStr + '</span></div>' +
     '</div>' + badge + '</div>' +
     '<div class="booking-price">R$ ' + parseFloat(b.totalPrice).toFixed(2) + '</div>' +
-    cancelBtn + '</div>';
+    cancelBtn + resultBtn + '</div>';
 }
 
 function cancelBooking(id) {
@@ -590,9 +661,103 @@ function loadProfile() {
         '<div style="display:flex;justify-content:space-between;"><span style="color:var(--ink-soft);">E-mail</span><span style="font-weight:600;">' + u.email + '</span></div>' +
         '<div style="display:flex;justify-content:space-between;"><span style="color:var(--ink-soft);">Cidade</span><span style="font-weight:600;">' + (p && p.city ? p.city : '—') + '</span></div>' +
         '<div style="display:flex;justify-content:space-between;"><span style="color:var(--ink-soft);">Estado</span><span style="font-weight:600;">' + (p && p.state ? p.state : '—') + '</span></div>' +
-        '</div>';
+        (p ? '<div style="display:flex;justify-content:space-between;"><span style="color:var(--ink-soft);">Confiabilidade</span><span style="font-weight:600;">' + p.reliability + '%</span></div>' : '') +
+        '</div>' +
+        '<button class="btn btn-outline btn-block" style="margin-top:18px;" onclick="openQuiz()">' + (p ? 'Refazer questionário de nível' : 'Fazer questionário de nível') + '</button>';
     })
     .catch(function() { document.getElementById('profile-card').innerHTML = '<div style="color:var(--red);">Erro ao carregar perfil.</div>'; });
+}
+
+// ── QUESTIONÁRIO DE NÍVEL ────────────────────────────────────────
+function openQuiz() {
+  document.getElementById('quiz-err').classList.remove('show');
+  document.getElementById('quiz-modal').classList.add('show');
+}
+function closeQuiz() { document.getElementById('quiz-modal').classList.remove('show'); }
+
+function submitQuiz() {
+  var btn = document.getElementById('btn-quiz');
+  var err = document.getElementById('quiz-err');
+  err.classList.remove('show');
+  var body = {
+    practiceTime: document.getElementById('q-practice').value,
+    technicalLevel: document.getElementById('q-technical').value,
+    frequency: document.getElementById('q-frequency').value
+  };
+  btn.disabled = true; btn.textContent = 'A calcular...';
+  fetch(API + '/players/level-quiz', { method: 'POST', headers: authHeaders(), body: JSON.stringify(body) })
+    .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+    .then(function(res) {
+      if (!res.ok) { err.textContent = res.d.error || 'Erro ao calcular nível.'; err.classList.add('show'); return; }
+      closeQuiz();
+      loadProfile();
+      alert('Nível definido: ' + res.d.novo_nivel.toFixed(1) + ' (confiabilidade ' + res.d.nova_confiabilidade + '%)');
+    })
+    .catch(function() { err.textContent = 'Sem ligação ao servidor.'; err.classList.add('show'); })
+    .finally(function() { btn.disabled = false; btn.textContent = 'Definir meu nível'; });
+}
+
+// ── RESULTADO DE PARTIDA ─────────────────────────────────────────
+var resultBookingPlayers = [];
+
+function openMatchResult(bookingId) {
+  var b = null;
+  for (var i = 0; i < allBookings.length; i++) { if (allBookings[i].id === bookingId) { b = allBookings[i]; break; } }
+  if (!b) return;
+  var me = getUser();
+  resultBookingPlayers = [{ id: b.playerId, name: (me && me.name) ? me.name + ' (você)' : 'Organizador' }]
+    .concat((b.participants || []).map(function(p){ return { id: p.playerId, name: p.player ? p.player.name : 'Jogador' }; }));
+
+  if (resultBookingPlayers.length !== 4) { alert('Esta partida não tem exatamente 4 jogadores confirmados.'); return; }
+
+  var opts = resultBookingPlayers.map(function(p){ return '<option value="' + p.id + '">' + p.name + '</option>'; }).join('');
+  ['r-a1','r-a2','r-b1','r-b2'].forEach(function(id, i){
+    var sel = document.getElementById(id);
+    sel.innerHTML = opts;
+    sel.selectedIndex = i;
+  });
+  document.getElementById('result-err').classList.remove('show');
+  document.getElementById('result-output').innerHTML = '';
+  document.getElementById('result-modal').classList.add('show');
+}
+
+function closeMatchResult() { document.getElementById('result-modal').classList.remove('show'); }
+
+function submitMatchResult() {
+  var btn = document.getElementById('btn-result');
+  var err = document.getElementById('result-err');
+  var out = document.getElementById('result-output');
+  err.classList.remove('show'); out.innerHTML = '';
+
+  var a1 = document.getElementById('r-a1').value;
+  var a2 = document.getElementById('r-a2').value;
+  var b1 = document.getElementById('r-b1').value;
+  var b2 = document.getElementById('r-b2').value;
+  var setsA = parseInt(document.getElementById('r-setsA').value, 10);
+  var setsB = parseInt(document.getElementById('r-setsB').value, 10);
+  var ids = [a1,a2,b1,b2];
+  if (new Set(ids).size !== 4) { err.textContent = 'Cada jogador só pode aparecer uma vez.'; err.classList.add('show'); return; }
+  if (isNaN(setsA) || isNaN(setsB) || setsA === setsB) { err.textContent = 'Informe um placar válido (sem empate).'; err.classList.add('show'); return; }
+
+  btn.disabled = true; btn.textContent = 'A salvar...';
+  fetch(API + '/players/match-result', {
+    method: 'POST', headers: authHeaders(),
+    body: JSON.stringify({ teamA: [a1,a2], teamB: [b1,b2], setsA: setsA, setsB: setsB })
+  })
+  .then(function(r){ return r.json().then(function(d){ return { ok: r.ok, d: d }; }); })
+  .then(function(res) {
+    if (!res.ok) { var m = res.d.details ? Object.values(res.d.details)[0][0] : res.d.error; err.textContent = m || 'Erro ao salvar.'; err.classList.add('show'); return; }
+    out.innerHTML = res.d.results.map(function(r) {
+      var dir = r.variação > 0 ? 'var(--green)' : r.variação < 0 ? 'var(--red)' : 'var(--ink-soft)';
+      return '<div style="border-top:1px solid var(--line);padding:10px 0;font-size:12.5px;">' +
+        '<strong>' + r.name + '</strong>: ' + r.nivel_anterior.toFixed(2) + ' → ' + r.novo_nivel.toFixed(2) +
+        ' <span style="color:' + dir + ';font-weight:700;">(' + (r.variação > 0 ? '+' : '') + r.variação.toFixed(2) + ')</span>' +
+        '<div style="color:var(--ink-soft);margin-top:3px;">' + r.resumo_ajuste + '</div></div>';
+    }).join('');
+    loadBookings();
+  })
+  .catch(function() { err.textContent = 'Sem ligação ao servidor.'; err.classList.add('show'); })
+  .finally(function() { btn.disabled = false; btn.textContent = 'Salvar resultado'; });
 }
 
 // ── Arranque ───────────────────────────────────────────────────
